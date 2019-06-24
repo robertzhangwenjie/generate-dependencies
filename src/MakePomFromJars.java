@@ -2,6 +2,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 import org.dom4j.Element;
@@ -9,23 +11,33 @@ import org.dom4j.dom.DOMElement;
 import org.jsoup.Jsoup;
 import com.alibaba.fastjson.JSONObject;
 public class MakePomFromJars {
+
     public static void main(String[] args) throws FileNotFoundException, IOException {
         Element dependencys = new DOMElement("dependencys");
-        File dir = new File("D:/libs"); //需生成pom.xml 文件的 lib路径
-        for (File jar : dir.listFiles()) {
+        File dir = new File("D:/workspace"); //需生成pom.xml 文件的 lib路径
+        List<File> jars = getJars(dir);
+
+        for (File jar : jars) {
+            System.out.println(jar);
+
             JarInputStream jis = new JarInputStream(new FileInputStream(jar));
             Manifest mainmanifest = jis.getManifest();
             jis.close();
-            String bundleName = mainmanifest.getMainAttributes().getValue("Bundle-Name");
-            String bundleVersion = mainmanifest.getMainAttributes().getValue("Bundle-Version");
+            String bundleName = null;
+            String bundleVersion = null;
+            try {
+                bundleName = mainmanifest.getMainAttributes().getValue("Bundle-Name");
+                bundleVersion = mainmanifest.getMainAttributes().getValue("Bundle-Version");
+            }catch (NullPointerException err) {
+                err.printStackTrace();
+            }
             Element ele = null;
-            System.out.println(jar.getName());
-            StringBuffer sb = new StringBuffer(jar.getName());
+            StringBuilder sb = new StringBuilder(jar.getName());
+//            StringBuffer sb = new StringBuffer(jar.getName());
             if (bundleName != null) {
                 bundleName = bundleName.toLowerCase().replace(" ", "-");
-                sb.append(bundleName+"\t").append(bundleVersion);
+                sb.append(bundleName + "\t").append(bundleVersion);
                 ele = getDependices(bundleName, bundleVersion);
-                System.out.println(sb.toString());
                 System.out.println(ele.asXML());
             }
             if (ele == null || ele.elements().size() == 0) {
@@ -47,9 +59,7 @@ public class MakePomFromJars {
                 }
                 ele = getDependices(bundleName, bundleVersion);
                 sb.setLength(0);
-                sb.append(bundleName+"\t").append(bundleVersion);
-                System.out.println(sb.toString());
-                System.out.println(ele.asXML());
+                sb.append(bundleName + "\t").append(bundleVersion);
             }
 
             ele = getDependices(bundleName, bundleVersion);
@@ -59,10 +69,27 @@ public class MakePomFromJars {
                 ele.add(new DOMElement("version").addText(bundleVersion));
             }
             dependencys.add(ele);
-            System.out.println();
         }
         System.out.println(dependencys.asXML());
     }
+    private static List<File> jar_list = new ArrayList<File>();
+
+    private static List<File> getJars(File dir) {
+        /*
+            如果传入的为文件且后缀为.jar，则直接将该文件add到jars
+         */
+        for (File file: dir.listFiles()) {
+            if (file.isFile() && file.getName().endsWith(".jar")) {
+                jar_list.add(file);
+            } else if (file.isDirectory()) {
+                getJars(file);
+            }
+
+        }
+        return jar_list;
+    }
+
+
     public static Element getDependices(String key, String ver) {
         Element dependency = new DOMElement("dependency");
         // 设置代理
