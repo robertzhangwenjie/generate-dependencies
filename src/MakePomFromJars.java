@@ -12,14 +12,19 @@ import org.jsoup.Jsoup;
 import com.alibaba.fastjson.JSONObject;
 public class MakePomFromJars {
 
-    public static void main(String[] args) throws FileNotFoundException, IOException {
+    private final String dirname;
+
+    public MakePomFromJars(String dirname) {
+        this.dirname = dirname;
+    }//            StringBuffer sb = new StringBuffer(jar.getName());
+
+
+    public void getJarsXml() throws FileNotFoundException, IOException {
         Element dependencys = new DOMElement("dependencys");
-        File dir = new File("D:/workspace"); //需生成pom.xml 文件的 lib路径
+        File dir = new File(this.dirname); //需生成pom.xml 文件的 lib路径
         List<File> jars = getJars(dir);
 
         for (File jar : jars) {
-            System.out.println(jar);
-
             JarInputStream jis = new JarInputStream(new FileInputStream(jar));
             Manifest mainmanifest = jis.getManifest();
             jis.close();
@@ -32,8 +37,7 @@ public class MakePomFromJars {
                 err.printStackTrace();
             }
             Element ele = null;
-            StringBuilder sb = new StringBuilder(jar.getName());
-//            StringBuffer sb = new StringBuffer(jar.getName());
+            StringBuffer sb = new StringBuffer(jar.getName());
             if (bundleName != null) {
                 bundleName = bundleName.toLowerCase().replace(" ", "-");
                 sb.append(bundleName + "\t").append(bundleVersion);
@@ -72,25 +76,28 @@ public class MakePomFromJars {
         }
         System.out.println(dependencys.asXML());
     }
-    private static List<File> jar_list = new ArrayList<File>();
+
 
     private static List<File> getJars(File dir) {
         /*
             如果传入的为文件且后缀为.jar，则直接将该文件add到jars
          */
-        for (File file: dir.listFiles()) {
-            if (file.isFile() && file.getName().endsWith(".jar")) {
-                jar_list.add(file);
-            } else if (file.isDirectory()) {
-                getJars(file);
+        List<File> result_list = new ArrayList<File>();
+        if (dir.isDirectory()) {
+            List<File> jars_list = new ArrayList<File>();
+            for (File file: dir.listFiles()) {
+                jars_list.addAll(getJars(file));
             }
-
+            return jars_list;
         }
-        return jar_list;
+        if (dir.isFile() && dir.getName().endsWith(".jar")) {
+            result_list.add(dir);
+        }
+        return result_list;
     }
 
 
-    public static Element getDependices(String key, String ver) {
+    private static Element getDependices(String key, String ver) {
         Element dependency = new DOMElement("dependency");
         // 设置代理
         // System.setProperty("http.proxyHost", "127.0.0.1");
